@@ -1,0 +1,26 @@
+{
+	"name": "obsidian-ultitasks",
+	"version": "0.1.0",
+	"description": "Manage tasks inline in Obsidian notes with an inbox/priority/date/completed sidebar, list view, and edit panel.",
+	"main": "main.js",
+	"scripts": {
+		"dev": "node esbuild.config.mjs",
+		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"typecheck": "tsc -noEmit -skipLibCheck"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "MIT",
+	"devDependencies": {
+		"@codemirror/view": "^6.26.0",
+		"@types/node": "^20.11.0",
+		"builtin-modules": "^3.3.0",
+		"esbuild": "^0.20.0",
+		"obsidian": "^1.5.7",
+		"tslib": "^2.6.2",
+		"typescript": "^5.3.3"
+	},
+	"dependencies": {
+		"date-fns": "^3.6.0"
+	}
+}

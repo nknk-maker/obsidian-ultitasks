@@ -1,0 +1,10 @@
+{
+	"id": "ultitasks",
+	"name": "UltiTasks",
+	"version": "0.1.0",
+	"minAppVersion": "1.5.0",
+	"description": "Manage tasks (- [ ] ... @attr(value)) with an inbox/priority/date/completed sidebar, a list view, and an edit panel.",
+	"author": "keitaro.noda",
+	"authorUrl": "",
+	"isDesktopOnly": false
+}
