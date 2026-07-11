@@ -250,6 +250,22 @@
 	overflow-y: auto;
 }
 
+.ultitasks-edit-body {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-3);
+}
+
+.ultitasks-schedule-details {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+}
+
+.ultitasks-hidden {
+	display: none;
+}
+
 .ultitasks-edit-header {
 	display: flex;
 	align-items: center;

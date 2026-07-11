@@ -1,4 +1,5 @@
 import { ATTR_RE, PRIORITY_VALUES, REPEAT_VALUES, TASK_LINE_RE } from "../constants";
+import { isValidDate, isValidTime } from "./dates";
 import { Priority, RepeatRule, TaskAttrs, TaskItem } from "./types";
 
 interface ParsedAttrs {
@@ -19,9 +20,16 @@ function parseAttrs(rest: string): ParsedAttrs {
 	return { text: text.replace(/\s+/g, " ").trim(), attrs };
 }
 
+/** Keeps a "YYYY-MM-DD" date only when it is a real calendar date; drops anything malformed. */
+function parseDate(value: string | undefined): string | undefined {
+	const date = value?.trim();
+	return date && isValidDate(date) ? date : undefined;
+}
+
+/** Keeps a "HH:MM" time only when it is a valid 24-hour time; drops anything malformed. */
 function parseTime(value: string | undefined): string | undefined {
 	const time = value?.trim();
-	return time || undefined;
+	return time && isValidTime(time) ? time : undefined;
 }
 
 function parsePriority(value: string | undefined): Priority | undefined {
@@ -56,11 +64,11 @@ export function parseTaskLine(rawLine: string, file: string, line: number): Task
 		name: text,
 		checked: box.toLowerCase() === "x",
 		priority: parsePriority(attrs.priority),
-		date: attrs.date,
+		date: parseDate(attrs.date),
 		allDay: parseAllDay(attrs, time),
 		time,
 		repeat: parseRepeat(attrs.repeat),
-		done: attrs.done,
+		done: parseDate(attrs.done),
 	};
 }
 
