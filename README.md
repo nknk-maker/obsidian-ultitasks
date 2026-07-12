@@ -62,7 +62,3 @@ npm run build   # type-check + production build
 
 The build (via `esbuild.config.mjs`) bundles `src/main.ts` into `main.js` at the project root, which
 Obsidian loads directly alongside `manifest.json` and `styles.css`.
-
-## License
-
-MIT
