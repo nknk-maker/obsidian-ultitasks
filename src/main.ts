@@ -1,20 +1,27 @@
 import { Plugin, WorkspaceLeaf } from "obsidian";
 import { VIEW_TYPE_EDIT, VIEW_TYPE_LIST, VIEW_TYPE_NAV } from "./constants";
-import { FocusStore } from "./editor/focusStore";
 import { createFocusExtension } from "./editor/focusExtension";
+import { FocusStore } from "./editor/focusStore";
+import type { UltiTasksHost } from "./host";
 import { t } from "./i18n";
-import { VaultIndex } from "./index/VaultIndex";
-import type { UltiTasksHost } from "./pluginTypes";
+import { FileLockMap } from "./vault/FileLockMap";
+import { TaskStore } from "./vault/TaskStore";
+import { VaultIndex } from "./vault/VaultIndex";
 import { EditPanelView } from "./views/EditPanelView";
 import { ListView } from "./views/ListView";
 import { SidebarNavView } from "./views/SidebarNavView";
 
 export default class UltiTasksPlugin extends Plugin implements UltiTasksHost {
 	vaultIndex!: VaultIndex;
+	taskStore!: TaskStore;
 	focusStore: FocusStore = new FocusStore();
 
 	async onload(): Promise<void> {
-		this.vaultIndex = new VaultIndex(this.app);
+		// One lock map shared by everything that reads-then-writes a file (index rescans, UI commits),
+		// so the two can never interleave against the same file — see FileLockMap.
+		const locks = new FileLockMap();
+		this.vaultIndex = new VaultIndex(this.app, locks);
+		this.taskStore = new TaskStore(this.app, this.vaultIndex, locks);
 		this.addChild(this.vaultIndex);
 
 		this.registerView(VIEW_TYPE_NAV, (leaf) => new SidebarNavView(leaf, this));

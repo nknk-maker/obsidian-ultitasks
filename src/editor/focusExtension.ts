@@ -1,6 +1,6 @@
 import { EditorView, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import { App, MarkdownView } from "obsidian";
-import { parseTaskLine } from "../model/parser";
+import { parseTaskLine } from "../model/line";
 import { FocusStore } from "./focusStore";
 
 /** Registers a CodeMirror extension that keeps `store` updated with the task under the cursor. */

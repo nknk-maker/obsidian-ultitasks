@@ -1,8 +1,22 @@
-import { ATTR_RE, PRIORITY_VALUES, REPEAT_VALUES, TASK_LINE_RE } from "../constants";
+/**
+ * Parsing and serializing of the on-disk task line format:
+ *
+ *     - [ ] task name @priority(high) @date(2026-07-12) @allday(false) @time(09:00) @repeat(weekly)
+ *
+ * `parseTaskLine` and `buildTaskLine` are inverses; everything else in the plugin goes through them
+ * rather than touching the line syntax directly. Parsing is tolerant: malformed values and
+ * inconsistent attribute combinations are ignored (see normalizeAttrs), never fixed in the file.
+ */
 import { isValidDate, isValidTime } from "./dates";
-import { Priority, RepeatRule, TaskAttrs, TaskItem } from "./types";
+import { PRIORITY_VALUES, Priority, REPEAT_VALUES, RepeatRule, TaskAttrs, TaskItem, normalizeAttrs } from "./task";
 
-interface ParsedAttrs {
+/** Matches a markdown checkbox list item, e.g. "  - [ ] buy milk @priority(high)". */
+const TASK_LINE_RE = /^(\s*)-\s\[([ xX])\]\s+(.*)$/;
+
+/** Matches a single @key(value) attribute token. */
+const ATTR_RE = /@([a-zA-Z]+)\(([^)]*)\)/g;
+
+interface RawAttrs {
 	/** The line text with every @key(value) token stripped out. */
 	text: string;
 	/** Lowercased attribute keys mapped to their raw string values. */
@@ -10,7 +24,7 @@ interface ParsedAttrs {
 }
 
 /** Splits a line into its plain text and its @key(value) attributes. */
-function parseAttrs(rest: string): ParsedAttrs {
+function splitAttrs(rest: string): RawAttrs {
 	const attrs: Record<string, string> = {};
 	ATTR_RE.lastIndex = 0;
 	const text = rest.replace(ATTR_RE, (_match, key: string, value: string) => {
@@ -53,7 +67,7 @@ export function parseTaskLine(rawLine: string, file: string, line: number): Task
 	const match = TASK_LINE_RE.exec(rawLine);
 	if (!match) return null;
 	const [, indent, box, rest] = match;
-	const { text, attrs } = parseAttrs(rest);
+	const { text, attrs } = splitAttrs(rest);
 	const time = parseTime(attrs.time);
 	return {
 		id: `${file}:${line}`,
@@ -63,12 +77,14 @@ export function parseTaskLine(rawLine: string, file: string, line: number): Task
 		indent,
 		name: text,
 		checked: box.toLowerCase() === "x",
-		priority: parsePriority(attrs.priority),
-		date: parseDate(attrs.date),
-		allDay: parseAllDay(attrs, time),
-		time,
-		repeat: parseRepeat(attrs.repeat),
-		done: parseDate(attrs.done),
+		attrs: normalizeAttrs({
+			priority: parsePriority(attrs.priority),
+			date: parseDate(attrs.date),
+			allDay: parseAllDay(attrs, time),
+			time,
+			repeat: parseRepeat(attrs.repeat),
+			done: parseDate(attrs.done),
+		}),
 	};
 }
 

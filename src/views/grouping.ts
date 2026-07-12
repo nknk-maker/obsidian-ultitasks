@@ -1,7 +1,6 @@
 import { addDays, differenceInCalendarDays, format, parseISO, startOfDay } from "date-fns";
-import { PRIORITY_VALUES } from "../constants";
 import { t } from "../i18n";
-import { Priority, TaskItem } from "../model/types";
+import { PRIORITY_VALUES, Priority, TaskItem } from "../model/task";
 
 /** One labelled group of tasks shown as a sub-heading in the list view. */
 export interface GroupedSection {
@@ -44,7 +43,7 @@ export function groupInbox(tasks: TaskItem[]): GroupedSection[] {
 /** Priority: open tasks grouped High → Medium → Low → No priority. */
 export function groupPriority(tasks: TaskItem[]): GroupedSection[] {
 	const open = tasks.filter((task) => !task.checked);
-	const byPriority = groupBy(open, (task) => task.priority ?? "none");
+	const byPriority = groupBy(open, (task) => task.attrs.priority ?? "none");
 	return PRIORITY_GROUP_ORDER.filter((key) => byPriority.has(key)).map((key) => ({
 		key,
 		label: key === "none" ? t.group.noPriority : t.group.priority(t.priority[key as Priority]),
@@ -64,8 +63,8 @@ export function groupDate(tasks: TaskItem[], today: Date): GroupedSection[] {
 	const byKey = new Map(sections.map((s) => [s.key, s]));
 
 	for (const task of tasks) {
-		if (task.checked || !task.date) continue;
-		const day = startOfDay(parseISO(task.date));
+		if (task.checked || !task.attrs.date) continue;
+		const day = startOfDay(parseISO(task.attrs.date));
 		const diff = differenceInCalendarDays(day, start);
 		if (diff > 7) continue;
 		byKey.get(diff < 0 ? OVERDUE : format(day, "yyyy-MM-dd"))?.items.push(task);
@@ -75,8 +74,8 @@ export function groupDate(tasks: TaskItem[], today: Date): GroupedSection[] {
 
 /** Completed: done tasks grouped by completion (@done) date, most recent first. */
 export function groupCompleted(tasks: TaskItem[]): GroupedSection[] {
-	const done = tasks.filter((task) => task.checked && task.done) as (TaskItem & { done: string })[];
-	const byDate = groupBy(done, (task) => task.done);
+	const done = tasks.filter((task) => task.checked && task.attrs.done);
+	const byDate = groupBy(done, (task) => task.attrs.done ?? "");
 	return [...byDate.entries()]
 		.sort((a, b) => b[0].localeCompare(a[0]))
 		.map(([date, items]) => ({ key: date, label: format(parseISO(date), t.dateFormat.full), items }));

@@ -2,10 +2,9 @@ import { format, parseISO } from "date-fns";
 import { ItemView, ViewStateResult, WorkspaceLeaf, setIcon } from "obsidian";
 import { VIEW_TYPE_LIST } from "../constants";
 import { revealLine } from "../editor/navigation";
-import { getFile, toggleTaskChecked } from "../editor/writeBack";
+import type { UltiTasksHost } from "../host";
 import { t } from "../i18n";
-import { TaskItem } from "../model/types";
-import type { UltiTasksHost } from "../pluginTypes";
+import { TaskItem } from "../model/task";
 import { GroupedSection } from "./grouping";
 import { findListMode } from "./listModes";
 
@@ -57,15 +56,9 @@ export class ListView extends ItemView {
 		const root = this.contentEl;
 		root.empty();
 		root.addClass("ultitasks-list-view");
-
-		const groupsEl = root.createDiv({ cls: "ultitasks-list-groups" });
-		this.renderGroups(groupsEl);
-	}
-
-	private renderGroups(container: HTMLElement): void {
-		container.empty();
 		this.rowsById.clear();
 
+		const container = root.createDiv({ cls: "ultitasks-list-groups" });
 		const mode = findListMode(this.modeType);
 		const header = container.createDiv({ cls: "ultitasks-list-header" });
 		setIcon(header, mode.icon);
@@ -82,7 +75,7 @@ export class ListView extends ItemView {
 			for (const item of section.items) {
 				this.renderItemRow(itemsEl, item);
 				if (item !== section.items.last()) {
-					this.renderLine(itemsEl);
+					itemsEl.createEl("hr", { cls: "ultitasks-list-line" });
 				}
 			}
 		}
@@ -100,7 +93,7 @@ export class ListView extends ItemView {
 		const checkbox = row.createEl("input", { type: "checkbox", cls: "ultitasks-checkbox" });
 		checkbox.checked = item.checked;
 		checkbox.addEventListener("click", (evt) => evt.stopPropagation());
-		checkbox.addEventListener("change", () => void this.toggleTask(item));
+		checkbox.addEventListener("change", () => void this.host.taskStore.toggleChecked(item));
 
 		const main = row.createDiv({ cls: "ultitasks-item-main" });
 		const text = main.createDiv({
@@ -108,24 +101,7 @@ export class ListView extends ItemView {
 		});
 		text.setText(item.name || t.app.untitled);
 
-		const meta = main.createDiv({ cls: "ultitasks-item-meta" });
-		if (item.priority) {
-			meta.createSpan({
-				cls: `ultitasks-badge priority-${item.priority}`,
-				text: t.group.priority(t.priority[item.priority]),
-			});
-		}
-		if (item.date) {
-			meta.createSpan({ cls: "ultitasks-badge", text: formatDateLabel(item.date) });
-		}
-		if (item.time) {
-			meta.createSpan({ cls: "ultitasks-badge", text: item.time });
-		}
-		if (item.repeat !== "never") {
-			const badge = meta.createSpan({ cls: "ultitasks-badge" });
-			setIcon(badge.createSpan({ cls: "ultitasks-badge-icon" }), "repeat");
-			badge.createSpan({ text: t.repeat[item.repeat] });
-		}
+		this.renderItemMeta(main, item);
 
 		const openLink = row.createSpan({ cls: "ultitasks-item-open-link" });
 		setIcon(openLink, "external-link");
@@ -138,15 +114,26 @@ export class ListView extends ItemView {
 		row.addEventListener("click", () => this.host.focusStore.set(item));
 	}
 
-	private renderLine(container: HTMLElement): void {
-		container.createEl("hr", { cls: "ultitasks-list-line" });
-	}
-
-	private async toggleTask(task: TaskItem): Promise<void> {
-		const ok = await toggleTaskChecked(this.host.app, task);
-		if (!ok) return;
-		const file = getFile(this.host.app, task.file);
-		if (file) await this.host.vaultIndex.rescanFileNow(file);
+	private renderItemMeta(container: HTMLElement, item: TaskItem): void {
+		const { priority, date, time, repeat } = item.attrs;
+		const meta = container.createDiv({ cls: "ultitasks-item-meta" });
+		if (priority) {
+			meta.createSpan({
+				cls: `ultitasks-badge priority-${priority}`,
+				text: t.group.priority(t.priority[priority]),
+			});
+		}
+		if (date) {
+			meta.createSpan({ cls: "ultitasks-badge", text: format(parseISO(date), t.dateFormat.short) });
+		}
+		if (time) {
+			meta.createSpan({ cls: "ultitasks-badge", text: time });
+		}
+		if (repeat !== "never") {
+			const badge = meta.createSpan({ cls: "ultitasks-badge" });
+			setIcon(badge.createSpan({ cls: "ultitasks-badge-icon" }), "repeat");
+			badge.createSpan({ text: t.repeat[repeat] });
+		}
 	}
 
 	private updateFocusHighlight(): void {
@@ -155,8 +142,4 @@ export class ListView extends ItemView {
 			row.toggleClass("is-focused", !!focused && focused.id === id);
 		});
 	}
-}
-
-function formatDateLabel(dateStr: string): string {
-	return format(parseISO(dateStr), t.dateFormat.short);
 }

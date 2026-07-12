@@ -1,19 +1,15 @@
-import { format } from "date-fns";
 import { ItemView, ToggleComponent, WorkspaceLeaf, setIcon } from "obsidian";
-import { PRIORITY_VALUES, REPEAT_VALUES, VIEW_TYPE_EDIT } from "../constants";
+import { VIEW_TYPE_EDIT } from "../constants";
 import { revealLine } from "../editor/navigation";
-import { TaskUpdate, applyTaskUpdate, getFile, updateTask } from "../editor/writeBack";
+import type { UltiTasksHost } from "../host";
 import { t } from "../i18n";
-import { Priority, RepeatRule, TaskItem } from "../model/types";
-import type { UltiTasksHost } from "../pluginTypes";
+import { todayStr } from "../model/dates";
+import { DEFAULT_TIME, PRIORITY_VALUES, Priority, REPEAT_VALUES, RepeatRule, TaskItem } from "../model/task";
+import { TaskUpdate } from "../model/update";
 
 interface Option {
 	value: string;
 	label: string;
-}
-
-function today(): string {
-	return format(new Date(), "yyyy-MM-dd");
 }
 
 /** Pairs an ordered list of values with their display labels for a <select>. */
@@ -78,6 +74,7 @@ export class EditPanelView extends ItemView {
 	async onOpen(): Promise<void> {
 		this.buildDom();
 		this.register(this.host.focusStore.onChange(() => this.sync()));
+		this.register(this.host.vaultIndex.onChange(() => this.syncFromIndex()));
 		this.sync();
 	}
 
@@ -99,6 +96,26 @@ export class EditPanelView extends ItemView {
 		this.patch(this.host.focusStore.get());
 	}
 
+	/**
+	 * VaultIndex is the authority for what the shown task's line actually contains — it reindexes on
+	 * every file change. Whenever it reports one, re-adopt its version of the task this panel is
+	 * showing, so the panel re-renders on any change to the underlying line — wherever it came from —
+	 * and `this.task.raw` never lags behind the file (a stale raw would make the next edit plan a
+	 * line edit whose `expectedRaw` no longer matches, tripping the conflict guard).
+	 *
+	 * Unlike sync(), this deliberately runs even while the user is editing here: it only ever
+	 * refreshes the *same* task (matched by id), and patch() is focus-safe — it never rebuilds DOM
+	 * and skips the focused control's value — so an in-progress edit is not disturbed.
+	 */
+	private syncFromIndex(): void {
+		const current = this.task;
+		if (!current) return;
+		const fresh = this.host.vaultIndex.getAllTasks().find((candidate) => candidate.id === current.id);
+		if (!fresh || fresh.raw === current.raw) return;
+		this.host.focusStore.set(fresh);
+		this.patch(fresh);
+	}
+
 	/** Writes `task` onto the existing controls without recreating any of them. */
 	private patch(task: TaskItem | null): void {
 		this.task = task;
@@ -109,16 +126,17 @@ export class EditPanelView extends ItemView {
 		this.patching = true;
 		this.checkbox.checked = task.checked;
 		this.setValue(this.nameInput, task.name);
-		this.setValue(this.prioritySelect, task.priority ?? "");
+		this.setValue(this.prioritySelect, task.attrs.priority ?? "");
 
-		this.scheduleToggle.setValue(!!task.date);
-		this.setShown(this.scheduleDetailsEl, !!task.date);
-		if (task.date) {
-			this.setValue(this.dateInput, task.date);
-			this.allDayToggle.setValue(task.allDay);
-			this.setShown(this.timeFieldEl, !task.allDay);
-			this.setValue(this.timeInput, task.time ?? "09:00");
-			this.setValue(this.repeatSelect, task.repeat);
+		const { date, allDay, time, repeat } = task.attrs;
+		this.scheduleToggle.setValue(!!date);
+		this.setShown(this.scheduleDetailsEl, !!date);
+		if (date) {
+			this.setValue(this.dateInput, date);
+			this.allDayToggle.setValue(allDay);
+			this.setShown(this.timeFieldEl, !allDay);
+			this.setValue(this.timeInput, time ?? DEFAULT_TIME);
+			this.setValue(this.repeatSelect, repeat);
 		}
 
 		this.sourceTextEl.setText(`${fileName(task.file)} : ${t.app.sourceLine(task.line + 1)}`);
@@ -173,10 +191,9 @@ export class EditPanelView extends ItemView {
 		this.checkbox = header.createEl("input", { type: "checkbox", cls: "ultitasks-card-checkbox" });
 		this.checkbox.addEventListener("change", () => {
 			if (this.patching) return;
-			void this.commit({
-				checked: this.checkbox.checked,
-				attrs: { done: this.checkbox.checked ? today() : undefined },
-			});
+			// Reports the flip; the write plan carries its consequences (done stamp, recurrence) in the
+			// same single write. See model/update.ts.
+			void this.commit({ checked: this.checkbox.checked });
 		});
 		this.nameInput = header.createEl("input", { type: "text", placeholder: t.app.taskNamePlaceholder });
 		this.nameInput.addEventListener("change", () => {
@@ -201,11 +218,9 @@ export class EditPanelView extends ItemView {
 		titleRow.createSpan({ cls: "ultitasks-card-title", text: t.edit.schedule });
 		this.scheduleToggle = new ToggleComponent(titleRow).onChange((on) => {
 			if (this.patching) return;
-			void this.commit({
-				attrs: on
-					? { date: this.task?.date ?? today(), allDay: true }
-					: { date: undefined, time: undefined, repeat: "never" },
-			});
+			// Reports only the date itself — clearing time/repeat when the date is removed is an
+			// invariant the write plan applies (see normalizeAttrs), not something this control decides.
+			void this.commit({ attrs: { date: on ? (this.task?.attrs.date ?? todayStr()) : undefined } });
 		});
 
 		this.scheduleDetailsEl = card.createDiv({ cls: "ultitasks-schedule-details" });
@@ -217,7 +232,7 @@ export class EditPanelView extends ItemView {
 			if (this.patching) return;
 			// Never write a cleared/invalid date back; the schedule toggle is how a date is removed.
 			if (!this.dateInput.value) {
-				this.dateInput.value = this.task?.date ?? "";
+				this.dateInput.value = this.task?.attrs.date ?? "";
 				return;
 			}
 			void this.commit({ attrs: { date: this.dateInput.value } });
@@ -227,9 +242,9 @@ export class EditPanelView extends ItemView {
 		const allDayLabel = allDayRow.createEl("label", { text: t.edit.allDay });
 		this.allDayToggle = new ToggleComponent(allDayRow).onChange((on) => {
 			if (this.patching) return;
-			void this.commit({
-				attrs: on ? { allDay: true, time: undefined } : { allDay: false, time: this.task?.time ?? "09:00" },
-			});
+			// Reports only the flip — clearing/defaulting `time` to match is an invariant the write
+			// plan applies (see normalizeAttrs), not something this control decides.
+			void this.commit({ attrs: { allDay: on } });
 		});
 		allDayLabel.addEventListener("click", () => this.allDayToggle.toggleEl.click());
 
@@ -237,7 +252,7 @@ export class EditPanelView extends ItemView {
 		this.timeFieldEl = time.wrap;
 		this.timeInput = time.row.createEl("input", { type: "time" });
 		this.timeInput.addEventListener("change", () => {
-			if (!this.patching) void this.commit({ attrs: { time: this.timeInput.value || "09:00" } });
+			if (!this.patching) void this.commit({ attrs: { time: this.timeInput.value || DEFAULT_TIME } });
 		});
 
 		const repeat = this.buildField(this.scheduleDetailsEl, t.edit.repeat);
@@ -258,19 +273,29 @@ export class EditPanelView extends ItemView {
 	// --- Persistence -------------------------------------------------------
 
 	private async commit(updates: TaskUpdate): Promise<void> {
-		const base = this.task;
-		if (!base) return;
-		const ok = await updateTask(this.host.app, base, updates);
-		if (!ok) {
-			// Genuine external conflict: resync to whatever the line actually is now.
-			this.patch(this.host.focusStore.get());
-			return;
+		// TaskStore re-reads `this.task` once the file lock is granted and hands the committed task
+		// back through `adopt` while still holding the lock — so back-to-back commits (e.g. toggling
+		// "repeat" twice quickly) chain off each other's settled result instead of racing a stale
+		// snapshot. The adopt-time patch also reflects the edit immediately (e.g. "All day" off
+		// reveals the time field) without dropping focus; our own sync() no-ops while editing.
+		const committed = await this.host.taskStore.commit(
+			() => this.task,
+			updates,
+			(next) => {
+				this.task = next;
+				this.host.focusStore.set(next); // keep the list view / editor in sync
+				this.patch(next);
+			},
+		);
+		if (!committed) {
+			// Genuine external conflict (or the task vanished): resync to the index's current version
+			// of this task if it still exists, else to whatever is focused now.
+			const held = this.task;
+			const fresh = held
+				? (this.host.vaultIndex.getAllTasks().find((candidate) => candidate.id === held.id) ?? null)
+				: null;
+			if (fresh) this.host.focusStore.set(fresh);
+			this.patch(fresh ?? this.host.focusStore.get());
 		}
-		const updated = applyTaskUpdate(base, updates);
-		this.task = updated;
-		this.host.focusStore.set(updated); // keep the list view / editor in sync; our own sync() no-ops while editing
-		this.patch(updated); // reflect this edit now (e.g. "All day" off reveals the time field), keeping focus
-		const file = getFile(this.host.app, base.file);
-		if (file) await this.host.vaultIndex.rescanFileNow(file);
 	}
 }

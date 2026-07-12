@@ -1,4 +1,4 @@
-import { isValid, parseISO } from "date-fns";
+import { format, isValid, parseISO } from "date-fns";
 
 /** Strict "YYYY-MM-DD" shape — rejects 5/6-digit years and other malformed strings up front. */
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -25,4 +25,9 @@ export function isValidDate(value: string | undefined | null): boolean {
 /** True when `value` is a valid 24-hour "HH:MM" time. */
 export function isValidTime(value: string | undefined | null): boolean {
 	return !!value && TIME_RE.test(value);
+}
+
+/** Today's date in local time as "YYYY-MM-DD". */
+export function todayStr(): string {
+	return format(new Date(), "yyyy-MM-dd");
 }

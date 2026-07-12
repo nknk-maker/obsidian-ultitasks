@@ -1,5 +1,5 @@
 import { addDays, addMonths, addWeeks, addYears, format, parseISO } from "date-fns";
-import { RepeatRule } from "./types";
+import { RepeatRule } from "./task";
 
 function step(date: Date, repeat: RepeatRule): Date {
 	switch (repeat) {

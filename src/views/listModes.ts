@@ -1,5 +1,5 @@
 import { t } from "../i18n";
-import { TaskItem } from "../model/types";
+import { TaskItem } from "../model/task";
 import { GroupedSection, groupCompleted, groupDate, groupInbox, groupPriority } from "./grouping";
 
 /**

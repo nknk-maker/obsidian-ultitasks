@@ -1,4 +1,4 @@
-import { Priority, RepeatRule } from "./model/types";
+import { Priority, RepeatRule } from "./model/task";
 
 /**
  * All user-facing display strings, isolated in one place so a future i18n layer can swap locales.

@@ -1,7 +1,7 @@
 import { ItemView, WorkspaceLeaf, setIcon } from "obsidian";
 import { VIEW_TYPE_NAV } from "../constants";
+import type { UltiTasksHost } from "../host";
 import { t } from "../i18n";
-import type { UltiTasksHost } from "../pluginTypes";
 import { LIST_MODES, ListMode } from "./listModes";
 
 export class SidebarNavView extends ItemView {
