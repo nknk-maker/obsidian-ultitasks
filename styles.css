@@ -131,7 +131,7 @@
 
 .ultitasks-item-row {
 	display: flex;
-	align-items: flex-start;
+	align-items: center;
 	gap: var(--size-4-2);
 	border-radius: var(--radius-s);
 	cursor: pointer;
