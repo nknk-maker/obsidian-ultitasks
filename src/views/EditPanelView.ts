@@ -4,7 +4,7 @@ import { revealLine } from "../editor/navigation";
 import type { UltiTasksHost } from "../host";
 import { t } from "../i18n";
 import { todayStr } from "../model/dates";
-import { DEFAULT_TIME, PRIORITY_VALUES, Priority, REPEAT_VALUES, RepeatRule, TaskItem } from "../model/task";
+import { DEFAULT_TIME, PRIORITY_VALUES, Priority, REPEAT_VALUES, RepeatRule, TaskItem, isAllDay } from "../model/task";
 import { TaskUpdate } from "../model/update";
 
 interface Option {
@@ -128,7 +128,8 @@ export class EditPanelView extends ItemView {
 		this.setValue(this.nameInput, task.name);
 		this.setValue(this.prioritySelect, task.attrs.priority ?? "");
 
-		const { date, allDay, time, repeat } = task.attrs;
+		const { date, time, repeat } = task.attrs;
+		const allDay = isAllDay(task.attrs);
 		this.scheduleToggle.setValue(!!date);
 		this.setShown(this.scheduleDetailsEl, !!date);
 		if (date) {
@@ -242,9 +243,9 @@ export class EditPanelView extends ItemView {
 		const allDayLabel = allDayRow.createEl("label", { text: t.edit.allDay });
 		this.allDayToggle = new ToggleComponent(allDayRow).onChange((on) => {
 			if (this.patching) return;
-			// Reports only the flip — clearing/defaulting `time` to match is an invariant the write
-			// plan applies (see normalizeAttrs), not something this control decides.
-			void this.commit({ attrs: { allDay: on } });
+			// All-day is derived from the absence of a time (see isAllDay), so toggling it just sets
+			// or clears `time` directly — there is no separate flag to report.
+			void this.commit({ attrs: { time: on ? undefined : DEFAULT_TIME } });
 		});
 		allDayLabel.addEventListener("click", () => this.allDayToggle.toggleEl.click());
 

@@ -25,24 +25,27 @@ export const DEFAULT_TIME = "09:00";
 export interface TaskAttrs {
 	priority?: Priority;
 	date?: string; // "YYYY-MM-DD"
-	allDay: boolean;
 	time?: string; // "HH:mm"
 	repeat: RepeatRule;
 	done?: string; // "YYYY-MM-DD"
 }
 
 /**
- * The invariants between date/allDay/time/repeat: no date means all-day with no time and no repeat;
- * all-day means no time; a dated, non-all-day task defaults to {@link DEFAULT_TIME}.
+ * The invariant between date/time/repeat: no date means no time and no repeat. A task is "all-day"
+ * whenever it has no time — that is never stored, only derived (see {@link isAllDay}).
  *
  * Applied in exactly two places: when *reading* a line (so inconsistent hand-typed attributes are
  * ignored rather than surfaced) and when *building* a line to write (so an edit always produces a
  * consistent line). Never used to rewrite a file on its own.
  */
 export function normalizeAttrs(attrs: TaskAttrs): TaskAttrs {
-	if (!attrs.date) return { ...attrs, allDay: true, time: undefined, repeat: "never" };
-	if (attrs.allDay) return { ...attrs, time: undefined };
-	return { ...attrs, time: attrs.time ?? DEFAULT_TIME };
+	if (!attrs.date) return { ...attrs, time: undefined, repeat: "never" };
+	return attrs;
+}
+
+/** A task is all-day whenever it carries no time — there is no separate stored flag for it. */
+export function isAllDay(attrs: TaskAttrs): boolean {
+	return !attrs.time;
 }
 
 /** A task parsed from a single markdown checkbox line. */
