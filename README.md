@@ -38,7 +38,6 @@ markdown checkboxes in your notes — no separate database, no special syntax be
 | `@priority`   | `high`, `medium`, `low`                            | Omit for no priority                    |
 | `@date`       | `YYYY-MM-DD`                                       | The task's scheduled date               |
 | `@time`       | `HH:MM` (24-hour)                                  | Requires `@date`; omit for an all-day task |
-| `@allday`     | `true`, `false`                                    | Defaults to `true` unless `@time` is set |
 | `@repeat`     | `never`, `daily`, `weekly`, `monthly`, `yearly`    | Requires `@date`                        |
 | `@done`       | `YYYY-MM-DD`                                       | Set automatically when a task is checked |
 

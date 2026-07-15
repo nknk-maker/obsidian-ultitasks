@@ -1,7 +1,7 @@
 /**
  * Parsing and serializing of the on-disk task line format:
  *
- *     - [ ] task name @priority(high) @date(2026-07-12) @allday(false) @time(09:00) @repeat(weekly)
+ *     - [ ] task name @priority(high) @date(2026-07-12) @time(09:00) @repeat(weekly)
  *
  * `parseTaskLine` and `buildTaskLine` are inverses; everything else in the plugin goes through them
  * rather than touching the line syntax directly. Parsing is tolerant: malformed values and
@@ -56,19 +56,12 @@ function parseRepeat(value: string | undefined): RepeatRule {
 	return v && (REPEAT_VALUES as readonly string[]).includes(v) ? (v as RepeatRule) : "never";
 }
 
-/** All-day unless explicitly @allday(false) or an explicit time is present. */
-function parseAllDay(attrs: Record<string, string>, time: string | undefined): boolean {
-	if (attrs.allday !== undefined) return attrs.allday.toLowerCase() !== "false";
-	return !time;
-}
-
 /** Parses a single line into a task, or returns null when it isn't a checkbox item. */
 export function parseTaskLine(rawLine: string, file: string, line: number): TaskItem | null {
 	const match = TASK_LINE_RE.exec(rawLine);
 	if (!match) return null;
 	const [, indent, box, rest] = match;
 	const { text, attrs } = splitAttrs(rest);
-	const time = parseTime(attrs.time);
 	return {
 		id: `${file}:${line}`,
 		file,
@@ -80,8 +73,7 @@ export function parseTaskLine(rawLine: string, file: string, line: number): Task
 		attrs: normalizeAttrs({
 			priority: parsePriority(attrs.priority),
 			date: parseDate(attrs.date),
-			allDay: parseAllDay(attrs, time),
-			time,
+			time: parseTime(attrs.time),
 			repeat: parseRepeat(attrs.repeat),
 			done: parseDate(attrs.done),
 		}),
@@ -112,7 +104,6 @@ export function buildTaskLine(indent: string, checked: boolean, name: string, at
 	const attrString = serializeAttrs([
 		["priority", attrs.priority],
 		["date", attrs.date],
-		["allday", attrs.date ? String(attrs.allDay) : undefined],
 		["time", attrs.time],
 		["repeat", attrs.repeat !== "never" ? attrs.repeat : undefined],
 		["done", attrs.done],
