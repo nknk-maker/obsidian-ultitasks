@@ -1,30 +1,24 @@
 # UltiTasks
 
-A lightweight task manager for [Obsidian](https://obsidian.md) that works directly on standard
-markdown checkboxes in your notes — no separate database, no special syntax beyond a few inline
-`@key(value)` attributes.
+A lightweight full-GUI task manager for [Obsidian](https://obsidian.md) that works directly on 
+markdown checkboxes in your notes.
 
 ![UltiTasks screenshot](assets/screenshot.png)
 
 ## Features
 
-- **Inline tasks, plain markdown.** Any `- [ ] ...` checkbox in any note is a task. Attributes like
-  priority, due date, and repeat are just `@key(value)` tokens appended to the line — the note stays
-  readable and portable.
-- **Sidebar navigation** with four views:
-  - **Inbox** — every open task, grouped by the note it lives in.
-  - **Priority** — open tasks grouped High → Medium → Low → No priority.
-  - **Date** — open tasks grouped into Overdue / Today / the next 7 days.
-  - **Completed** — done tasks grouped by completion date, most recent first.
-- **List view** for browsing and checking off tasks, with priority/date/repeat badges and a
-  one-click jump back to the source line in your note.
-- **Edit panel** that always shows the task under your cursor — set priority, schedule a date/time,
-  toggle all-day, or set a repeat rule without leaving the keyboard.
-- **Recurring tasks.** Checking off a task with a repeat rule (daily/weekly/monthly/yearly) marks the
-  current line done and inserts the next occurrence right after it, with the date advanced
-  automatically.
+- **Inline Tasks** — Every task is written as a markdown checkbox with `@key(value)` tokens.
+  Priority, due date and time, and repeat can be set.
+- **List View** provides four views navigated by sidebar:
+  - **Inbox** — every task grouped by the note it lives in.
+  - **Priority** — tasks grouped High → Medium → Low → No priority.
+  - **Date** — tasks grouped into Overdue / Today / the next 7 days.
+  - **Completed** — done tasks grouped by completion date.
+- **Edit panel** — Set priority, schedule a date/time, toggle all-day, or set a repeat rule for the selected task.
+- **Recurring tasks.** When you check off a task with a repeat rule,
+  the line is checked and the next occurrence is inserted under it, with the date advanced.
 - **Live sync.** The sidebar and edit panel update automatically as you edit notes in the main
-  editor, and vice versa.
+  editor
 
 ## Task syntax
 
@@ -45,7 +39,7 @@ Everything else on the line is treated as the task's name.
 
 ## Installation
 
-This plugin isn't yet on the Obsidian community plugin store. To install manually:
+This plugin isn't on the Obsidian community plugin store. To install manually:
 
 1. Download or build `main.js`, `manifest.json`, and `styles.css` (see [Development](#development)).
 2. Copy them into `<your-vault>/.obsidian/plugins/ultitasks/`.
